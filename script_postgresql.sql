@@ -7,12 +7,12 @@ create table public.dim_date as (
 	    datum AS date_actual
 	    ,EXTRACT(EPOCH FROM datum) AS epoch
 	    ,TO_CHAR(datum, 'TMDay') AS day_name
-	    ,EXTRACT(ISODOW FROM datum) AS "day_of_week_1" -- iso 8601, starting day from monday to sunday
-	    ,(EXTRACT(ISODOW FROM datum) % 7) + 1 AS "day_of_week_2" -- starting day from sunday to saturday
+	    ,EXTRACT(ISODOW FROM datum) AS "day_of_week_1"
+	    ,(EXTRACT(ISODOW FROM datum) % 7) + 1 AS "day_of_week_2"
 	    ,EXTRACT(DAY FROM datum) AS day_of_month
 	    ,datum - DATE_TRUNC('quarter', datum)::DATE + 1 AS day_of_quarter
 	    ,EXTRACT(DOY FROM datum) AS day_of_year
-	    ,TO_CHAR(datum, 'W')::INT AS week_of_month_1 -- week started from day one of month
+	    ,TO_CHAR(datum, 'W')::INT AS week_of_month_1
 	    ,case
 	    	when 
 	    		datum >= datum + (1 - EXTRACT(DAY FROM datum))::INT
@@ -78,7 +78,7 @@ create table public.dim_date as (
 				EXTRACT(ISODOW FROM (datum + (1 - EXTRACT(DAY FROM datum))::INT)) <= 4
 				then
 					ceil((datum - ((datum + (1 - EXTRACT(DAY FROM datum))::INT) + (7 - extract(isodow from(datum + (1 - EXTRACT(DAY FROM datum))::INT))::int)))/7::float) + 1
-	    end as week_of_month_2 -- based on iso 8601, starting day from monday
+	    end::int as week_of_month_2
 	    ,case
 	    	when 
 	    		datum >= datum + (1 - EXTRACT(DAY FROM datum))::INT
@@ -144,8 +144,8 @@ create table public.dim_date as (
 				((EXTRACT(ISODOW FROM (datum + (1 - EXTRACT(DAY FROM datum))::INT)) % 7) + 1) <= 4
 				then
 					ceil((datum - ((datum + (1 - EXTRACT(DAY FROM datum))::INT) + (7 - ((extract(isodow from(datum + (1 - EXTRACT(DAY FROM datum))::INT))::int % 7) + 1))))/7::float) + 1
-	    end as week_of_month_3 -- based on iso 8601, starting day from sunday
-		,EXTRACT(WEEK FROM datum) AS "week_of_year_1" -- iso 8601, middle day in thursday because a week starting from monday, first and last week decision based on thursday
+	    end::int as week_of_month_3
+		,EXTRACT(WEEK FROM datum) AS "week_of_year_1"
 	    ,case
 			when
 			    (EXTRACT(ISODOW FROM (TO_DATE(EXTRACT(YEAR FROM datum) || '-12-31', 'YYYY-MM-DD'))) % 7) + 1 >= 4
@@ -185,7 +185,7 @@ create table public.dim_date as (
 					EXTRACT(week FROM (datum + 1))
 			else
 				extract(week from datum)
-		end as "week_of_year_2" -- based on iso 8601 weak of year rule but with middle week at wednesday rather than thursday because day starting from sunday
+		end as "week_of_year_2"
 	    ,EXTRACT(MONTH FROM datum) AS month_actual
 	    ,TO_CHAR(datum, 'TMMonth') AS month_name
 	    ,EXTRACT(QUARTER FROM datum) AS quarter_actual
@@ -208,10 +208,10 @@ create table public.dim_date as (
 		    		'Fourth'
 	    END AS quarter_name
 	    ,EXTRACT(YEAR FROM datum) AS year_actual
-	    ,datum + (1 - EXTRACT(ISODOW FROM datum))::INT AS "first_day_of_week_1" -- iso 8601, week of year and day starting from monday
-	    ,datum + (7 - EXTRACT(ISODOW FROM datum))::INT AS "last_day_of_week_1" -- iso 8601, about week of year and day starting from monday
-	    ,datum + (1 - ((EXTRACT(ISODOW FROM datum) % 7) + 1))::INT as "first_day_of_week_2" -- based on iso 8601 weak of year rule but with middle week at wednesday rather than thursday because day starting from sunday
-	    ,datum + (7 - ((EXTRACT(ISODOW FROM datum) % 7) + 1))::INT as "last_day_of_week_2" -- based on iso 8601 weak of year rule but with middle week at wednesday rather than thursday because day starting from sunday
+	    ,datum + (1 - EXTRACT(ISODOW FROM datum))::INT AS "first_day_of_week_1"
+	    ,datum + (7 - EXTRACT(ISODOW FROM datum))::INT AS "last_day_of_week_1"
+	    ,datum + (1 - ((EXTRACT(ISODOW FROM datum) % 7) + 1))::INT as "first_day_of_week_2"
+	    ,datum + (7 - ((EXTRACT(ISODOW FROM datum) % 7) + 1))::INT as "last_day_of_week_2"
 	    ,datum + (1 - EXTRACT(DAY FROM datum))::INT AS first_day_of_month
 	    ,(DATE_TRUNC('MONTH', datum) + INTERVAL '1 MONTH - 1 day')::DATE AS last_day_of_month
 	    ,DATE_TRUNC('quarter', datum)::DATE AS first_day_of_quarter
@@ -225,14 +225,14 @@ create table public.dim_date as (
 					EXTRACT(week from (TO_DATE(EXTRACT(YEAR FROM datum) || '-12-31', 'YYYY-MM-DD') - 3))
 			else
 	    		EXTRACT(week from (TO_DATE(EXTRACT(YEAR FROM datum) || '-12-31', 'YYYY-MM-DD')))
-	    end as "total_week_1" -- based on iso 8601 about week of year
+	    end as "total_week_1"
 	    ,CASE
 			WHEN 
 				EXTRACT(ISODOW FROM datum) IN (6, 7)
 				THEN 
 					true
 			ELSE FALSE
-		END AS "is_weekend" -- weekend at saturday and sunday
+		END AS "is_weekend"
 		,CASE
 	        WHEN 
 	        	EXTRACT(DOY from (TO_DATE(EXTRACT(YEAR FROM datum) || '-12-31', 'YYYY-MM-DD'))) = 365
@@ -259,6 +259,10 @@ comment on column public.dim_date."last_day_of_week_1" is 'iso 8601, about week 
 comment on column public.dim_date."first_day_of_week_2" is 'based on iso 8601 weak of year rule but with middle week at wednesday rather than thursday because day starting from sunday';
 comment on column public.dim_date."last_day_of_week_2" is 'based on iso 8601 weak of year rule but with middle week at wednesday rather than thursday because day starting from sunday';
 comment on column public.dim_date."is_weekend" is 'weekend at saturday and sunday';
+-- section 1.2: script for creating table dimension time
+
+-- section 1.2: script for creating table dimension timestamp
+
 
 -- section 2: script to preview data
 -- section 2.1: preview for table dimension date
@@ -338,7 +342,7 @@ SELECT
 			EXTRACT(ISODOW FROM (datum + (1 - EXTRACT(DAY FROM datum))::INT)) <= 4
 			then
 				ceil((datum - ((datum + (1 - EXTRACT(DAY FROM datum))::INT) + (7 - extract(isodow from(datum + (1 - EXTRACT(DAY FROM datum))::INT))::int)))/7::float) + 1
-    end as week_of_month_2 -- based on iso 8601, starting day from monday
+    end::int as week_of_month_2 -- based on iso 8601, starting day from monday
     ,case
     	when 
     		datum >= datum + (1 - EXTRACT(DAY FROM datum))::INT
@@ -404,7 +408,7 @@ SELECT
 			((EXTRACT(ISODOW FROM (datum + (1 - EXTRACT(DAY FROM datum))::INT)) % 7) + 1) <= 4
 			then
 				ceil((datum - ((datum + (1 - EXTRACT(DAY FROM datum))::INT) + (7 - ((extract(isodow from(datum + (1 - EXTRACT(DAY FROM datum))::INT))::int % 7) + 1))))/7::float) + 1
-    end as week_of_month_3 -- based on iso 8601, starting day from sunday
+    end::int as week_of_month_3 -- based on iso 8601, starting day from sunday
 	,EXTRACT(WEEK FROM datum) AS "week_of_year_1" -- iso 8601, middle day in thursday because a week starting from monday, first and last week decision based on thursday
     ,case
 		when
@@ -505,5 +509,10 @@ FROM
 	(SELECT 
 		'1970-01-01'::DATE + SEQUENCE.DAY AS datum
 	FROM 
-		GENERATE_SERIES(0, 29219) AS SEQUENCE (DAY)) as list_date)
+		GENERATE_SERIES(0, 100000) AS SEQUENCE (DAY)) as list_date
+order by
+	date_dim_id desc
 ;
+-- section 2.2: preview for table dimension time
+
+-- section 2.3: preview for table dimension timestamp
