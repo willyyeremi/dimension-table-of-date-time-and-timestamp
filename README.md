@@ -10,4 +10,4 @@ Below is the list of available RDMBS that the script has been created
 
 All of these scripts use this version of RDBMS to be created
 - PostgreSQL 15
-- Oracle 11g
+- Oracle 11g (NLS_TERRITORY = Indonesia)
