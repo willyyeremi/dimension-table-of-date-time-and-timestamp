@@ -3,6 +3,8 @@ SELECT
 	datum AS date_actual
 	,EXTRACT(EPOCH FROM datum)::bigint AS epoch
 	,TO_CHAR(datum, 'TMDay') AS day_name
+	,EXTRACT(ISODOW FROM datum)::int AS "day_of_week_1"
+	,TO_CHAR(datum,'D')::INT AS "day_of_week_2"
 	,case
 		when
 			datum >= date_trunc('month',datum)::date
@@ -12,7 +14,7 @@ SELECT
 				to_char(datum,'dd')::int
 		else
 			EXTRACT(ISODOW FROM datum)::int
-	end day_of_week_1
+	end day_of_week_3
 	,case
 		when
 			datum >= date_trunc('month',datum)::date
@@ -22,11 +24,8 @@ SELECT
 				to_char(datum,'dd')::int
 		else
 			to_char(datum,'d')::int
-	end day_of_week_2
-	,EXTRACT(ISODOW FROM datum)::int AS "day_of_week_3" -- iso 8601, starting day from monday to sunday
-	,TO_CHAR(datum,'D')::INT AS "day_of_week_4" -- starting day from sunday to saturday
+	end day_of_week_4
 	,EXTRACT(DAY FROM datum)::int AS day_of_month_1
-	-- first day from first day of first week. week calculation based on iso 8601.
 	,case
 		when
 			datum >= (DATE_TRUNC('MONTH', datum) + INTERVAL '1 MONTH - 1 day')::DATE - extract(isodow from (DATE_TRUNC('MONTH', datum) + INTERVAL '1 MONTH - 1 day')::DATE)::int + 1
@@ -66,7 +65,6 @@ SELECT
 						end		
 			end
 	end as day_of_month_2
-	-- first day from first day of first week. week calculation like iso 8601 but first week day from sunday
 	,case
 		when
 			datum >= (DATE_TRUNC('MONTH', datum) + INTERVAL '1 MONTH - 1 day')::DATE - to_char((DATE_TRUNC('MONTH', datum) + INTERVAL '1 MONTH - 1 day')::DATE,'D')::int + 1
@@ -234,7 +232,6 @@ SELECT
 		else
 			ceil((datum - (date_trunc('month',datum)::date + (7 - extract(isodow from date_trunc('month',datum)::date)::int)))/7::float)::int + 1
 	end AS week_of_month_1 
-	-- week started from day one of month. first day is sunnday.
 	,case
 		when
 			datum >= date_trunc('month',datum)::date
@@ -245,7 +242,6 @@ SELECT
 		else
 			ceil((datum - (date_trunc('month',datum)::date + (7 - TO_CHAR(date_trunc('month',datum)::date,'D')::INT)))/7::float)::int + 1
 	end as week_of_month_2
-	-- based on iso 8601, starting day from monday
 	,case
 		when 
 			datum >= date_trunc('month',datum)::date
@@ -304,7 +300,6 @@ SELECT
 			then
 				ceil((datum - (date_trunc('month',datum)::date + (7 - extract(isodow from date_trunc('month',datum)::date)::int)))/7::float) + 1
 	end::int as week_of_month_3
-	-- based on iso 8601, starting day from sunday
 	,case
 		when 
 			datum >= date_trunc('month',datum)::date
